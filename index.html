@@ -1,69 +1,122 @@
 <!DOCTYPE html>
-<html lang="ur">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guest Post Email Sender</title>
+    <title>Guest Post Outreach Pro</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
-        h2 { text-align: center; color: #333; }
-        label { display: block; margin-top: 15px; font-weight: bold; color: #555; }
-        input, textarea { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { background-color: #28a745; color: white; padding: 12px; border: none; border-radius: 4px; width: 100%; margin-top: 20px; font-size: 16px; cursor: pointer; }
-        button:hover { background-color: #218838; }
-        #status { margin-top: 15px; text-align: center; font-weight: bold; }
+        :root { --primary: #2563eb; --primary-hover: #1d4ed8; --bg: #f1f5f9; --card-bg: #ffffff; --text: #0f172a; --border: #cbd5e1; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; }
+        .container { background: var(--card-bg); padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08); width: 100%; max-width: 650px; box-sizing: border-box; }
+        h2 { text-align: center; color: var(--primary); margin-bottom: 5px; font-size: 24px; }
+        p.subtitle { text-align: center; color: #64748b; font-size: 13px; margin-bottom: 20px; }
+        label { display: block; margin-top: 14px; font-weight: 600; font-size: 13px; color: #334155; }
+        input, textarea { width: 100%; padding: 11px; margin-top: 6px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 14px; outline: none; transition: border-color 0.2s; }
+        input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        textarea { resize: vertical; }
+        .help-text { font-size: 11px; color: #64748b; margin-top: 4px; }
+        button { background-color: var(--primary); color: white; padding: 13px; border: none; border-radius: 8px; width: 100%; margin-top: 22px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #94a3b8; cursor: not-allowed; }
+        #status { margin-top: 18px; text-align: center; font-weight: 600; font-size: 14px; padding: 10px; border-radius: 8px; }
+        
+        /* Mobile Optimization */
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            h2 { font-size: 20px; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Guest Post Email Sender</h2>
-    <form id="emailForm">
-        <label for="recipient">Target Email:</label>
-        <input type="email" id="recipient" required placeholder="example@website.com">
+    <h2>Outreach Pro</h2>
+    <p class="subtitle">Multi-Account Rotation & Human-Touch Campaign Sender</p>
 
-        <label for="recipient">Subject:</label>
-        <input type="text" id="subject" required placeholder="Guest Post Inquiry">
+    <form id="bulkForm">
+        <label for="recipientsInput">Recipients List (Format: Email, Name, Website)</label>
+        <textarea id="recipientsInput" rows="5" required placeholder="contact@techsite.com, John, techsite.com&#10;info@healthblog.com, Sarah, healthblog.com"></textarea>
+        <div class="help-text">Ek line mein ek entry dein (Comma separated).</div>
 
-        <label for="message">Message:</label>
-        <textarea id="message" rows="6" required placeholder="AOA, I want to write a guest post..."></textarea>
+        <label for="subject">Email Subject Line</label>
+        <input type="text" id="subject" required placeholder="Quick question about {website} content">
+        <div class="help-text">Aap {website} ya {name} use kar sakte hain.</div>
 
-        <button type="submit">Send Email</button>
+        <label for="message">Email Body (Human Touch Template)</label>
+        <textarea id="message" rows="7" required placeholder="Hi {name},
+
+I was going through {website} yesterday and really loved your recent articles.
+
+I have a well-researched draft on a related topic that your audience would love. Would you be open to checking out a brief pitch?
+
+Best regards,
+Momen"></textarea>
+        <div class="help-text">Dynamic tags: {name} aur {website} automatically replace ho jayenge.</div>
+
+        <button type="submit" id="submitBtn">Start Bulk Campaign</button>
     </form>
     <div id="status"></div>
 </div>
 
 <script>
-    document.getElementById('emailForm').addEventListener('submit', async function(e) {
+    document.getElementById('bulkForm').addEventListener('submit', async function(e) {
         e.preventDefault();
-        const recipient = document.getElementById('recipient').value;
-        const subject = document.getElementById('subject').value;
-        const message = document.getElementById('message').value;
+        const rawText = document.getElementById('recipientsInput').value;
+        const subjectTemplate = document.getElementById('subject').value;
+        const messageTemplate = document.getElementById('message').value;
         const statusDiv = document.getElementById('status');
+        const submitBtn = document.getElementById('submitBtn');
 
-        statusDiv.style.color = 'blue';
-        statusDiv.innerText = 'Email bhej rahe hain...';
+        const lines = rawText.trim().split('\n');
+        const recipients = [];
+
+        for (let line of lines) {
+            const parts = line.split(',').map(p => p.trim());
+            if (parts[0] && parts[0].includes('@')) {
+                recipients.push({
+                    email: parts[0],
+                    name: parts[1] || 'Editor',
+                    website: parts[2] || 'your website'
+                });
+            }
+        }
+
+        if (recipients.length === 0) {
+            statusDiv.style.backgroundColor = '#fee2e2';
+            statusDiv.style.color = '#991b1b';
+            statusDiv.innerText = 'Kam az kam ek valid email enter karein!';
+            return;
+        }
+
+        submitBtn.disabled = true;
+        statusDiv.style.backgroundColor = '#e0f2fe';
+        statusDiv.style.color = '#0369a1';
+        statusDiv.innerText = `Campaign shuru hai... ${recipients.length} emails line mein hain. Please intezaar karein!`;
 
         try {
-            const response = await fetch('/send-email', {
+            const response = await fetch('/send-bulk-emails', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ recipient, subject, message })
+                body: JSON.stringify({ recipients, subjectTemplate, messageTemplate })
             });
 
             const data = await response.json();
             if (data.success) {
-                statusDiv.style.color = 'green';
+                statusDiv.style.backgroundColor = '#dcfce7';
+                statusDiv.style.color = '#166534';
                 statusDiv.innerText = data.message;
-                document.getElementById('emailForm').reset();
             } else {
-                statusDiv.style.color = 'red';
+                statusDiv.style.backgroundColor = '#fee2e2';
+                statusDiv.style.color = '#991b1b';
                 statusDiv.innerText = data.error || 'Kuch kharabi ho gayi hai.';
             }
         } catch (err) {
-            statusDiv.style.color = 'red';
+            statusDiv.style.backgroundColor = '#fee2e2';
+            statusDiv.style.color = '#991b1b';
             statusDiv.innerText = 'Server se rabta nahi ho saka.';
+        } finally {
+            submitBtn.disabled = false;
         }
     });
 </script>
