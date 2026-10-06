@@ -1,7 +1,7 @@
 {
-  "name": "guest-post-email-sender",
-  "version": "1.0.0",
-  "description": "A simple email sender tool for guest posting outreach",
+  "name": "guest-post-outreach-pro",
+  "version": "2.0.0",
+  "description": "Professional Bulk Guest Post Email Sender with Multi-Account Rotation and Human Touch",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
