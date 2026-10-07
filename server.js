@@ -1,115 +1,63 @@
 const express = require('express');
-const path = require('path');
 const nodemailer = require('nodemailer');
-require('dotenv').config();
+const cors = require('cors');
+const path = require('path');
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
-// Serve static frontend files from public folder
+// Frontend file serve karne ke liye
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Root route to fix Cannot GET / error on Vercel
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Nodemailer transporter setup (Aap yahan apne Gmail accounts ki App Passwords configure karenge)
+// Yeh 5 alag accounts ke liye dynamic ho sakta hai
+const createTransporter = (userEmail, appPassword) => {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: userEmail,
+      pass: appPassword
+    }
+  });
+};
+
+// Email sending endpoint
+app.post('/api/send-email', async (req, res) => {
+  const { senderEmail, appPassword, recipientEmail, clientName, clientNiche, clientWebsite } = req.body;
+
+  if (!senderEmail || !appPassword || !recipientEmail) {
+    return res.status(400).json({ success: false, message: 'Missing required fields' });
+  }
+
+  const transporter = createTransporter(senderEmail, appPassword);
+
+  const subject = `Quick question about your ${clientNiche} site - ${clientWebsite}`;
+  const body = `Hi ${clientName},\n\n` +
+               `I was browsing through websites in the ${clientNiche} space and came across ${clientWebsite}. Really liked your content!\n\n` +
+               `I am reaching out because I regularly contribute high-quality guest articles to top blogs in this niche. I was wondering if you accept guest posts or sponsored contributions on ${clientWebsite}?\n\n` +
+               `I can share a few fresh, well-researched topic ideas if you're open to it. Let me know what you think!\n\n` +
+               `Best regards,\nMomen`;
+
+  const mailOptions = {
+    from: senderEmail,
+    to: recipientEmail,
+    subject: subject,
+    text: body
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ success: true, message: `Email sent successfully to ${recipientEmail}` });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.toString() });
+  }
 });
 
-function getAccounts() {
-    let accounts = [];
-    let i = 1;
-    while (process.env[`EMAIL_USER_${i}`] && process.env[`EMAIL_PASS_${i}`]) {
-        accounts.push({
-            user: process.env[`EMAIL_USER_${i}`],
-            pass: process.env[`EMAIL_PASS_${i}`]
-        });
-        i++;
-    }
-    return accounts;
-}
-
-let currentAccountIndex = 0;
-
-function getNextTransporter() {
-    const accounts = getAccounts();
-    if (accounts.length === 0) return null;
-
-    const account = accounts[currentAccountIndex];
-    currentAccountIndex = (currentAccountIndex + 1) % accounts.length;
-
-    return {
-        transporter: nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: account.user,
-                pass: account.pass
-            }
-        }),
-        senderEmail: account.user
-    };
-}
-
-// Bulk Email Sending Endpoint with Rotation & Delay
-app.post('/send-bulk-emails', async (req, res) => {
-    const { recipients, subjectTemplate, messageTemplate } = req.body;
-
-    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
-        return res.status(400).json({ success: false, error: 'Koi recipient list nahi mili!' });
-    }
-
-    const accounts = getAccounts();
-    if (accounts.length === 0) {
-        return res.status(400).json({ success: false, error: 'Koi email account configuration nahi mili environment variables mein!' });
-    }
-
-    let successCount = 0;
-    let failCount = 0;
-
-    for (let item of recipients) {
-        try {
-            const { email, name, website } = item;
-
-            let personalizedSubject = subjectTemplate
-                .replace(/{name}/g, name || 'there')
-                .replace(/{website}/g, website || 'your site');
-
-            let personalizedMessage = messageTemplate
-                .replace(/{name}/g, name || 'there')
-                .replace(/{website}/g, website || 'your site');
-
-            const accountInfo = getNextTransporter();
-            if (!accountInfo) throw new Error('No active email account found');
-
-            let mailOptions = {
-                from: accountInfo.senderEmail,
-                to: email,
-                subject: personalizedSubject,
-                text: personalizedMessage
-            };
-
-            await accountInfo.transporter.sendMail(mailOptions);
-            successCount++;
-
-            // Natural human delay between emails (4 to 8 seconds)
-            const randomDelay = Math.floor(Math.random() * 4000) + 4000;
-            await new Promise(resolve => setTimeout(resolve, randomDelay));
-
-        } catch (err) {
-            console.error(`Failed to send to ${item.email}:`, err);
-            failCount++;
-        }
-    }
-
-    res.json({
-        success: true,
-        message: `Kamyabi se ${successCount} emails bhej di gayi hain! (Fail: ${failCount})`
-    });
-});
-
+// Local test ya Vercel export ke liye
 const PORT = process.env.PORT || 3000;
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
-}
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 module.exports = app;
