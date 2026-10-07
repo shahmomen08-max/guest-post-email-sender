@@ -34,7 +34,6 @@ function getNextTransporter() {
     if (accounts.length === 0) return null;
 
     const account = accounts[currentAccountIndex];
-    // Rotate to the next account automatically
     currentAccountIndex = (currentAccountIndex + 1) % accounts.length;
 
     return {
@@ -59,7 +58,7 @@ app.post('/send-bulk-emails', async (req, res) => {
 
     const accounts = getAccounts();
     if (accounts.length === 0) {
-        return res.status(400).json({ success: false, error: 'Koi email account configuration nahi mili .env / environment variables mein!' });
+        return res.status(400).json({ success: false, error: 'Koi email account configuration nahi mili environment variables mein!' });
     }
 
     let successCount = 0;
