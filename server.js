@@ -1,12 +1,19 @@
 const express = require('express');
+const path = require('path');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public'));
 
-// Load all 5 accounts dynamically from .env
+// Serve static frontend files from public folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Root route to fix Cannot GET / error on Vercel
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 function getAccounts() {
     let accounts = [];
     let i = 1;
@@ -42,7 +49,7 @@ function getNextTransporter() {
     };
 }
 
-// Bulk Email Sending Endpoint
+// Bulk Email Sending Endpoint with Rotation & Delay
 app.post('/send-bulk-emails', async (req, res) => {
     const { recipients, subjectTemplate, messageTemplate } = req.body;
 
@@ -52,7 +59,7 @@ app.post('/send-bulk-emails', async (req, res) => {
 
     const accounts = getAccounts();
     if (accounts.length === 0) {
-        return res.status(400).json({ success: false, error: 'Koi email account configuration nahi mili .env mein!' });
+        return res.status(400).json({ success: false, error: 'Koi email account configuration nahi mili .env / environment variables mein!' });
     }
 
     let successCount = 0;
@@ -62,7 +69,6 @@ app.post('/send-bulk-emails', async (req, res) => {
         try {
             const { email, name, website } = item;
 
-            // Personalization dynamic replacement
             let personalizedSubject = subjectTemplate
                 .replace(/{name}/g, name || 'there')
                 .replace(/{website}/g, website || 'your site');
@@ -84,7 +90,7 @@ app.post('/send-bulk-emails', async (req, res) => {
             await accountInfo.transporter.sendMail(mailOptions);
             successCount++;
 
-            // Natural human delay between emails (4 to 8 seconds) to prevent spam flags
+            // Natural human delay between emails (4 to 8 seconds)
             const randomDelay = Math.floor(Math.random() * 4000) + 4000;
             await new Promise(resolve => setTimeout(resolve, randomDelay));
 
@@ -101,6 +107,10 @@ app.post('/send-bulk-emails', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Outreach Server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
+module.exports = app;
