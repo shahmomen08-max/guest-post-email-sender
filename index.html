@@ -3,92 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bulk Guest-Post Email Outreach</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Bulk Domain Email Finder - Shah Creative</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-6">
     <div class="max-w-4xl mx-auto bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700">
-        <h1 class="text-3xl font-bold mb-6 text-indigo-400 text-center">Bulk Outreach Tool</h1>
+        <h1 class="text-3xl font-bold mb-2 text-indigo-400 text-center">Bulk Domain Email Finder</h1>
+        <p class="text-slate-400 text-center mb-8 text-sm">Guest posting aur outreach ke liye websites se active emails extract karein (Hunter / Snov.io Style)</p>
         
         <div class="space-y-6">
-            <!-- Subject Template -->
+            <!-- Domains Textarea -->
             <div>
-                <label class="block text-sm font-medium mb-2 text-slate-300">Subject Template (Use {name}, {website})</label>
-                <input type="text" id="subject" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500" placeholder="Guest Post Inquiry for {website}">
+                <label class="block text-sm font-medium mb-2 text-slate-300">Enter Websites / Domains (Ek line mein ek)</label>
+                <textarea id="domainInput" rows="6" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white font-mono text-sm focus:outline-none focus:border-indigo-500" placeholder="salisburypost.co.uk&#10;example.com&#10;techblog.com"></textarea>
             </div>
 
-            <!-- Message Template -->
-            <div>
-                <label class="block text-sm font-medium mb-2 text-slate-300">Message Template (Use {name}, {website})</label>
-                <textarea id="message" rows="6" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500" placeholder="Hi {name}, I saw your site {website}..."></textarea>
+            <!-- Action Buttons -->
+            <div class="flex gap-4">
+                <button onclick="findEmails()" id="searchBtn" class="flex-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 cursor-pointer">
+                    Find Guest Post Emails
+                </button>
+                <label for="csvFileInput" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg text-center transition duration-200 cursor-pointer flex items-center justify-center gap-2">
+                    📁 Import CSV
+                </label>
+                <input type="file" id="csvFileInput" accept=".csv, .txt" class="hidden" onchange="handleCSVImport(event)">
             </div>
 
-            <!-- Recipients JSON / List Input -->
-            <div>
-                <label class="block text-sm font-medium mb-2 text-slate-300">Recipients (JSON Array format)</label>
-                <textarea id="recipients" rows="5" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 font-mono text-sm text-white focus:outline-none focus:border-indigo-500" placeholder='[{"email": "example@domain.com", "name": "Ali", "website": "example.com"}]'></textarea>
-            </div>
-
-            <!-- Send Button -->
-            <button onclick="sendEmails()" id="sendBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition duration-200 cursor-pointer">
-                Start Sending Emails
-            </button>
-
-            <!-- Status Response -->
-            <div id="status" class="hidden p-4 rounded-lg text-center font-medium"></div>
+            <!-- Results Container -->
+            <div id="resultsContainer" class="space-y-4 mt-6"></div>
         </div>
     </div>
 
     <script>
-        async function sendEmails() {
-            const subjectTemplate = document.getElementById('subject').value;
-            const messageTemplate = document.getElementById('message').value;
-            const recipientsRaw = document.getElementById('recipients').value;
-            const statusDiv = document.getElementById('status');
-            const sendBtn = document.getElementById('sendBtn');
+        function handleCSVImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-            if (!subjectTemplate || !messageTemplate || !recipientsRaw) {
-                alert('Please fill in all fields!');
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const lines = text.split(/\r\n|\n/);
+                const domains = [];
+
+                lines.forEach(line => {
+                    let clean = line.replace(/["']/g, '').split(',')[0].trim();
+                    if (clean && !clean.toLowerCase().includes('domain') && !clean.toLowerCase().includes('website')) {
+                        domains.push(clean);
+                    }
+                });
+
+                if (domains.length > 0) {
+                    document.getElementById('domainInput').value = domains.join('\n');
+                    alert(`${domains.length} domains CSV se successfully import ho gaye hain!`);
+                } else {
+                    alert("CSV file mein koi valid domain nahi mila.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function findEmails() {
+            const input = document.getElementById('domainInput').value;
+            const domains = input.split('\n').map(d => d.trim()).filter(d => d);
+            const container = document.getElementById('resultsContainer');
+            
+            if (domains.length === 0) {
+                alert('Kam az kam ek domain toh enter karein!');
                 return;
             }
 
-            let recipients;
-            try {
-                recipients = JSON.parse(recipientsRaw);
-            } catch (e) {
-                alert('Invalid JSON format in recipients box!');
-                return;
-            }
-
-            sendBtn.disabled = true;
-            sendBtn.innerText = 'Sending Emails with Rotation...';
-            statusDiv.className = 'p-4 rounded-lg text-center font-medium bg-blue-900 text-blue-200';
-            statusDiv.innerText = 'Processing campaign, please wait...';
-            statusDiv.classList.remove('hidden');
+            container.innerHTML = `<div class="bg-slate-900 border border-slate-700 p-6 rounded-lg text-center text-indigo-300 animate-pulse">Searching active guest post emails across domains... Please wait.</div>`;
 
             try {
-                const response = await fetch('/send-bulk-emails', {
+                const response = await fetch('/api/verify', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ recipients, subjectTemplate, messageTemplate })
+                    body: JSON.stringify({ domains })
                 });
 
                 const data = await response.json();
+                container.innerHTML = '';
 
-                if (data.success) {
-                    statusDiv.className = 'p-4 rounded-lg text-center font-medium bg-emerald-900 text-emerald-200';
-                    statusDiv.innerText = data.message;
+                if (data.results && data.results.length > 0) {
+                    data.results.forEach(res => {
+                        let emailTags = '';
+                        if (res.emails && res.emails.length > 0) {
+                            emailTags = res.emails.map(e => `
+                                <span class="inline-flex items-center bg-emerald-950 text-emerald-300 border border-emerald-800/50 px-3 py-1.5 rounded-md text-xs font-mono">
+                                    ✉️ ${e}
+                                </span>
+                            `).join('');
+                        } else {
+                            emailTags = `<span class="text-rose-400 text-xs italic bg-rose-950/40 border border-rose-900/40 px-3 py-1.5 rounded-md">❌ No active email found</span>`;
+                        }
+
+                        const card = document.createElement('div');
+                        card.className = 'bg-slate-900 border border-slate-700 p-4 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4';
+                        card.innerHTML = `
+                            <div>
+                                <div class="text-indigo-400 font-bold text-base mb-1">🌐 ${res.target}</div>
+                                <div class="flex flex-wrap gap-2">${emailTags}</div>
+                            </div>
+                            <span class="text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700">${res.status}</span>
+                        `;
+                        container.appendChild(card);
+                    });
                 } else {
-                    statusDiv.className = 'p-4 rounded-lg text-center font-medium bg-red-900 text-red-200';
-                    statusDiv.innerText = data.error || 'Something went wrong!';
+                    container.innerHTML = `<div class="text-center text-rose-400 p-4">Koi results nahi mile.</div>`;
                 }
             } catch (err) {
-                statusDiv.className = 'p-4 rounded-lg text-center font-medium bg-red-900 text-red-200';
-                statusDiv.innerText = 'Network error occurred while sending!';
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.innerText = 'Start Sending Emails';
+                container.innerHTML = `<div class="text-center text-rose-400 p-4">Server error aa gaya hai. Dobara try karein.</div>`;
             }
         }
     </script>
